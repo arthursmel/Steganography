@@ -41,42 +41,44 @@ func insertBytesIntoCarrier(bytes, carrier_bytes, curIndex)
 
 	ret newIndex
 '''
+from itertools import izip
+from PIL import Image
 
 class Steg:
 
 	BITS_IN_BYTE = 8
 
-	cur_pixel = 0
-
 	payload_bit_count = 0
-	payload_bytes = [1, 1, 255]
+	payload_bytes = [1, 1, 1, 255]
 
 	carrier_height = 4
 	carrier_width = 4
 
-	def generate_pixel_coord(self, count=None):
+	def __init__(self):
+		pass
 
-		if not count:
-			count = (self.carrier_height * self.carrier_width) \
-					- self.cur_pixel
 
-		while count > 0:
-			x = self.cur_pixel % self.carrier_width 
-			y = self.cur_pixel // self.carrier_height
-			count -= 1
-			self.cur_pixel += 1
-			yield [y, x]
+
+	def generate_px_coord(self, start, end, width, height):
+		TOTAL_PIXELS = width * height
+		cur_pixel = start
+
+		while cur_pixel < end:
+			x = cur_pixel % width 
+			y = cur_pixel // height
+			cur_pixel += 1
+			yield (x, y)
 
 
 	def generate_next_bits(self):
-		MASK = 1
+		
 		PRIMARY_COLOR_COUNT = 3
 		TOTAL_PAYLOAD_BITS = len(self.payload_bytes) * self.BITS_IN_BYTE
 		PADDING = TOTAL_PAYLOAD_BITS % PRIMARY_COLOR_COUNT
 
 		while self.payload_bit_count < TOTAL_PAYLOAD_BITS:
 
-			cur_bits = 0
+			cur_byte = 0
 			bit_range = PADDING if \
 				((TOTAL_PAYLOAD_BITS - self.payload_bit_count) < PRIMARY_COLOR_COUNT) \
 				else PRIMARY_COLOR_COUNT
@@ -86,20 +88,32 @@ class Steg:
 				cur_payload_byte = self.payload_bit_count // self.BITS_IN_BYTE
 				cur_payload_bit = self.payload_bit_count % self.BITS_IN_BYTE
 
-				cur_bit = (self.payload_bytes[cur_payload_byte] >> cur_payload_bit) & MASK
- 				cur_bits = self.add_bit_to_next_bits(cur_bits, cur_bit)
-
- 				print cur_bit
+				cur_bit = self.get_next_bit(self.payload_bytes[cur_payload_byte], cur_payload_bit)
+ 				cur_byte = self.add_bit_to_byte(cur_byte, cur_bit)
 
 				self.payload_bit_count += 1
 
-			yield cur_bits
+			yield cur_byte
 
+	def get_next_bit(self, bits, shift_by):
+		return (bits >> shift_by) & 1
 
-	def add_bit_to_next_bits(self, cur_bits, bit_to_add):
-		# 0000 0000
-		# 1st bit -> last bit
-		return (cur_bits << 1) | bit_to_add
+	def add_bit_to_byte(self, cur_byte, bit_to_add):
+		return (cur_byte << 1) | bit_to_add
+
+	def get_encoded_px(self, px, byte):
+		R_MASK = 4; R_POS = 2
+		G_MASK = 2; G_POS = 1
+		B_MASK = 1; B_POS = 0
+
+		LSB_MASK = 1
+
+		(r, g, b) = px
+		r = (r & ~LSB_MASK) | ((byte & R_MASK) >> R_POS)
+		g = (g & ~LSB_MASK) | ((byte & G_MASK) >> G_POS)
+		b = (b & ~LSB_MASK) | ((byte & B_MASK) >> B_POS)
+
+		return (r, g, b)
 
 
 
@@ -108,11 +122,18 @@ if __name__ == '__main__':
 	
 	s = Steg()
 
-	for bits in s.generate_next_bits():
-		print("Byte: " + str(bits))
+	for x, y in s.generate_px_coord(0, 10, 5, 5):
+		print(str(x) + " " + str(y))
+
+	'''
+	px_gen = s.generate_px_coord(2)
+	bit_gen = s.generate_next_bits()
+
+	for (x, y), byte in izip(px_gen, bit_gen):
+		print("Byte: " + str(byte) + ", pix: " + str(x) + str(y))
+	'''
 
 
-	
 
 
 
