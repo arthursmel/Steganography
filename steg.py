@@ -47,6 +47,7 @@ from PIL import Image
 class Steg:
 
 	BITS_IN_BYTE = 8
+	BYTES_IN_INTEGER = 4
 
 	payload_bit_count = 0
 	payload_bytes = [1, 1, 1, 255]
@@ -57,6 +58,23 @@ class Steg:
 	def __init__(self):
 		pass
 
+
+
+
+	def create_length_header(self, payload_bytes):
+		'''
+		Creates a header in the byte array of the payload which contains the 
+		length of the payload itself. The length is a 32 bit interger. The bytes 
+		are inserted in the header from LSB -> MSB
+		'''
+		BYTE_MASK = 255 # 0000 0000 0000 0000 0000 0000 1111 1111
+		length = len(payload_bytes) # The length of the payload to insert into header
+
+		for byte_count in range(self.BYTES_IN_INTEGER):
+			byte_to_insert = \
+				(length & (BYTE_MASK << (self.BITS_IN_BYTE * byte_count))) \
+				>> (self.BITS_IN_BYTE * byte_count)
+			payload_bytes.insert(byte_count, byte_to_insert)
 
 
 	def generate_px_coord(self, start, end, width, height):
@@ -70,7 +88,7 @@ class Steg:
 			yield (x, y)
 
 
-	def generate_next_bits(self):
+	def generate_payload_bits(self):
 		
 		PRIMARY_COLOR_COUNT = 3
 		TOTAL_PAYLOAD_BITS = len(self.payload_bytes) * self.BITS_IN_BYTE
@@ -95,11 +113,14 @@ class Steg:
 
 			yield cur_byte
 
+
 	def get_next_bit(self, bits, shift_by):
 		return (bits >> shift_by) & 1
 
+
 	def add_bit_to_byte(self, cur_byte, bit_to_add):
 		return (cur_byte << 1) | bit_to_add
+
 
 	def get_encoded_px(self, px, byte):
 		R_MASK = 4; R_POS = 2
@@ -122,12 +143,13 @@ if __name__ == '__main__':
 	
 	s = Steg()
 
-	for x, y in s.generate_px_coord(0, 10, 5, 5):
-		print(str(x) + " " + str(y))
+	pl = [1] * 2
+	s.create_length_header(pl)
+	print pl
 
 	'''
 	px_gen = s.generate_px_coord(2)
-	bit_gen = s.generate_next_bits()
+	bit_gen = s.generate_payload_bits()
 
 	for (x, y), byte in izip(px_gen, bit_gen):
 		print("Byte: " + str(byte) + ", pix: " + str(x) + str(y))
