@@ -43,21 +43,41 @@ func insertBytesIntoCarrier(bytes, carrier_bytes, curIndex)
 '''
 from itertools import izip
 from PIL import Image
+import math
 
 class Steg:
 
 	BITS_IN_BYTE = 8
 	BYTES_IN_INTEGER = 4
+	PRIMARY_COLOR_COUNT = 3
 
-	payload_bit_count = 0
-	payload_bytes = [1, 1, 1, 255]
+	def encode(self, carrier_path, payload_path):
+	
+		with open(payload_path, "rb") as p_img:
+			f = p_img.read()
+			payload_bytes = bytearray(f)
 
-	carrier_height = 4
-	carrier_width = 4
+		with Image.open(carrier_path) as c_img:
+			c_width, c_height = c_img.size
+			c_img_pxs = c_img.load()
 
-	def __init__(self):
+			self.create_length_header(payload_bytes)
+			px_needed = self.get_number_of_carrier_px(payload_bytes)
+			px_gen = self.generate_px_coord(c_width, c_height)
+			bit_gen = self.generate_payload_bits(payload_bytes)
+
+			for (x, y), byte in izip(px_gen, bit_gen):
+
+				cur_px = c_img_pxs[x, y]
+				new_px = self.get_encoded_px(cur_px, byte)
+				c_img_pxs[x, y] = new_px
+
+
+			c_img.save('test.jpg')
+
+
+	def decode(self, encoded_path):
 		pass
-
 
 
 
@@ -65,7 +85,7 @@ class Steg:
 		'''
 		Creates a header in the byte array of the payload which contains the 
 		length of the payload itself. The length is a 32 bit interger. The bytes 
-		are inserted in the header from LSB -> MSB
+		are inserted in the header from LS Byte -> MS Byte
 		'''
 		BYTE_MASK = 255 # 0000 0000 0000 0000 0000 0000 1111 1111
 		length = len(payload_bytes) # The length of the payload to insert into header
@@ -77,39 +97,40 @@ class Steg:
 			payload_bytes.insert(byte_count, byte_to_insert)
 
 
-	def generate_px_coord(self, start, end, width, height):
+	def generate_px_coord(self, width, height):
 		TOTAL_PIXELS = width * height
-		cur_pixel = start
+		cur_px = 0
 
-		while cur_pixel < end:
-			x = cur_pixel % width 
-			y = cur_pixel // height
-			cur_pixel += 1
+		while cur_px < TOTAL_PIXELS:
+			x = cur_px % width 
+			y = cur_px // width
+			cur_px += 1
 			yield (x, y)
 
 
-	def generate_payload_bits(self):
+	def generate_payload_bits(self, payload_bytes):
 		
-		PRIMARY_COLOR_COUNT = 3
-		TOTAL_PAYLOAD_BITS = len(self.payload_bytes) * self.BITS_IN_BYTE
-		PADDING = TOTAL_PAYLOAD_BITS % PRIMARY_COLOR_COUNT
+		payload_bit_count = 0
+		
+		TOTAL_PAYLOAD_BITS = len(payload_bytes) * self.BITS_IN_BYTE
+		PADDING = TOTAL_PAYLOAD_BITS % self.PRIMARY_COLOR_COUNT
 
-		while self.payload_bit_count < TOTAL_PAYLOAD_BITS:
+		while payload_bit_count < TOTAL_PAYLOAD_BITS:
 
 			cur_byte = 0
 			bit_range = PADDING if \
-				((TOTAL_PAYLOAD_BITS - self.payload_bit_count) < PRIMARY_COLOR_COUNT) \
-				else PRIMARY_COLOR_COUNT
+				((TOTAL_PAYLOAD_BITS - payload_bit_count) < self.PRIMARY_COLOR_COUNT) \
+				else self.PRIMARY_COLOR_COUNT
 
 			for i in range(bit_range):
 
-				cur_payload_byte = self.payload_bit_count // self.BITS_IN_BYTE
-				cur_payload_bit = self.payload_bit_count % self.BITS_IN_BYTE
+				cur_payload_byte = payload_bit_count // self.BITS_IN_BYTE
+				cur_payload_bit = payload_bit_count % self.BITS_IN_BYTE
 
-				cur_bit = self.get_next_bit(self.payload_bytes[cur_payload_byte], cur_payload_bit)
+				cur_bit = self.get_next_bit(payload_bytes[cur_payload_byte], cur_payload_bit)
  				cur_byte = self.add_bit_to_byte(cur_byte, cur_bit)
 
-				self.payload_bit_count += 1
+				payload_bit_count += 1
 
 			yield cur_byte
 
@@ -136,16 +157,21 @@ class Steg:
 
 		return (r, g, b)
 
+	def get_number_of_carrier_px(self, payload_bytes):
+		'''
+		Calculate the number of pixels needed from the carrier to encode
+		the payload image.
+		'''
+		return int(math.ceil((len(payload_bytes) * self.BITS_IN_BYTE) / float(self.PRIMARY_COLOR_COUNT)))
+
+
 
 
 
 if __name__ == '__main__':
 	
 	s = Steg()
-
-	pl = [1] * 2
-	s.create_length_header(pl)
-	print pl
+	s.encode("/Users/mel/Downloads/iphone4scamera-111004-full.JPG", "/Users/mel/Downloads/I86rTVl.jpg")
 
 	'''
 	px_gen = s.generate_px_coord(2)
