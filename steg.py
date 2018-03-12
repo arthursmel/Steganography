@@ -53,9 +53,6 @@ class Steg:
 
 	def encode(self, carrier_path, payload_path, output_path):
 	
-		buf = Buffer()
-		arr = []
-
 		with open(payload_path, "rb") as p_img:
 			f = p_img.read()
 			payload_bytes = bytearray(f)
@@ -74,36 +71,24 @@ class Steg:
 				new_px = self.get_encoded_px(cur_px, byte)
 				c_img_pxs[x, y] = new_px
 
-				b = buf.add_bits(self.get_decoded_px(new_px))
-				if b != None:
-					arr.append(b)
-
-
 			c_img.save(output_path)
 
-		for x in range(len(arr)):
-			#print(arr[x], payload_bytes[x])
-			pass
 
 
-
-	def decode(self, encoded_path, output_path=None):
+	def decode(self, encoded_path, output_path):
 		
-		
-		with open("/Users/mel/Downloads/winflag.png", "rb") as p_img:
-			f = p_img.read()
-			payload_bytes = bytearray(f)
-
+		output_bytes = []
 	
 		with Image.open(encoded_path) as e_img:
-
 
 			e_img_pxs = e_img.load()
 			e_img_width, e_img_height = e_img.size
 
-			for (a, b) in izip(self.generate_decoded_bytes(e_img_width, e_img_height, e_img_pxs), payload_bytes):
-				print(a, b)
-				pass
+			for byte in self.generate_decoded_bytes(e_img_width, e_img_height, e_img_pxs):
+				output_bytes.append(byte)
+		
+		with open(output_path, 'wb') as o_img:
+   			o_img.write(bytearray(output_bytes))
 
 
 
@@ -259,11 +244,11 @@ if __name__ == '__main__':
 	s = Steg()
 
 
-	s.encode("/Users/mel/Downloads/iphone4scamera-111004-full.JPG", "/Users/mel/Downloads/winflag.png", "test.png")
+	s.encode("/Users/mel/Downloads/iphone4scamera-111004-full.JPG", "/Users/mel/Downloads/iphone4scamera-111004-full.JPG", "test.png")
 
 
 
-	s.decode("test.png")
+	s.decode("test.png", "out.png")
 
 
 
