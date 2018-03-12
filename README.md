@@ -1,6 +1,6 @@
 # Steganography
 
-[Hides a picture in a picture] (https://en.wikipedia.org/wiki/Steganography)
+[Hides a picture in a picture](https://en.wikipedia.org/wiki/Steganography)
 
 ## Usage
 ### Encoding 
