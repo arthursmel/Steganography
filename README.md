@@ -6,7 +6,7 @@
 ### Encoding 
 `python steg.py <carrier_path> <payload_path> <output_path>`
 ### Decoding
-`python steg.py <input_path> <output_path`
+`python steg.py <input_path> <output_path>`
 
 ## Todo
 
