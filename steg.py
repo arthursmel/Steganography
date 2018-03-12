@@ -1,49 +1,8 @@
 
-
-'''
- command line arguments
-
- steg ./carrier ./payload ./output
- steg ./input ./output 
-
-
-- each payload bit needs 8 bits in the carrier
-- 32 bits header containing number of bytes (max image size)
-- 1 bit of payload per byte of carrier 
-(payload_size * 8) + (32 * 8) < carrier_size
-
-
-
-if carrier not big enough to carry payload
-	exit
-
-insert payload size into carrier (32) fixed
-
-for each pixel in carrier
-	r
-	g
-	b
-
-
-
-for next 3 bits in payload, next pixel coords
-	
-
-
-
-
-
-
-
-func insertBytesIntoCarrier(bytes, carrier_bytes, curIndex)
-
-
-
-	ret newIndex
-'''
 from itertools import izip
 from PIL import Image
 import math
+import sys
 
 class Steg:
 
@@ -72,7 +31,6 @@ class Steg:
 				c_img_pxs[x, y] = new_px
 
 			c_img.save(output_path)
-
 
 
 	def decode(self, encoded_path, output_path):
@@ -104,7 +62,6 @@ class Steg:
 			if next_decoded_byte != None:
 				length = self.add_byte_to_integer(length, next_decoded_byte)
 
-		print(length, buf.buf)
 		px_used_for_payload = self.get_number_of_carrier_px(length)
 
 		for (x, y) in self.generate_px_coord(e_img_width, e_img_height,\
@@ -123,7 +80,6 @@ class Steg:
 		'''
 		BYTE_MASK = 4278190080 # 1111 1111 0000 0000 0000 0000 0000 0000 
 		length = len(payload_bytes) # The length of the payload to insert into header
-		print(length)
 
 		for byte_count in range(self.BYTES_IN_INTEGER):
 			byte_to_insert = \
@@ -144,7 +100,12 @@ class Steg:
 
 
 	def generate_payload_bits(self, payload_bytes):
-		
+		'''
+		A generator which splits the payload_bytes into bytes which
+		contain the information in only the LS 3 bits. This means these
+		bytes can be used to easily encode the data in the rgb values 
+		of pixels
+		'''
 		payload_bit_count = 0
 		
 		TOTAL_PAYLOAD_BITS = len(payload_bytes) * self.BITS_IN_BYTE
@@ -177,6 +138,7 @@ class Steg:
 	def add_bit_to_byte(self, cur_byte, bit_to_add):
 		return (cur_byte << 1) | bit_to_add
 
+
 	def add_byte_to_integer(self, integer, byte_to_add):
 		return (integer << 8) | byte_to_add
 
@@ -190,10 +152,12 @@ class Steg:
 		R_MASK = 4; R_POS = 2
 		G_MASK = 2; G_POS = 1
 		B_MASK = 1; B_POS = 0
-
 		LSB_MASK = 1
 
 		(r, g, b) = px
+
+		# Changing the LSB of each color component
+		# to the associated bit of the byte to encode
 		r = (r & ~LSB_MASK) | ((byte & R_MASK) >> R_POS)
 		g = (g & ~LSB_MASK) | ((byte & G_MASK) >> G_POS)
 		b = (b & ~LSB_MASK) | ((byte & B_MASK) >> B_POS)
@@ -241,14 +205,15 @@ class Buffer:
 
 if __name__ == '__main__':
 	
-	s = Steg()
+	steg = Steg()
+	arg_count = len(sys.argv)
 
-
-	s.encode("/Users/mel/Downloads/iphone4scamera-111004-full.JPG", "/Users/mel/Downloads/iphone4scamera-111004-full.JPG", "test.png")
-
-
-
-	s.decode("test.png", "out.png")
+	if (arg_count == 3):
+		steg.decode(sys.argv[1], sys.argv[2])
+	elif(arg_count == 4):
+		steg.encode(sys.argv[1], sys.argv[2], sys.argv[3])
+	else:
+		print("python steg.py <carrier_path> <payload_path> <output_path>\npython steg.py <encoded_path> <output_path>")
 
 
 
